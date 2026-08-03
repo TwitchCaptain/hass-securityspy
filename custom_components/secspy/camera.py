@@ -51,7 +51,12 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
         )
 
     async def stream_source(self) -> str | None:
-        """Return stream URL."""
+        """Return stream URL.
+
+        RTSP URLs include userinfo credentials (SecuritySpy requirement). Prefer
+        enabling the Disable RTSP option to use auth-query MJPEG instead if
+        credential exposure in stream URLs is a concern.
+        """
         if self._disable_rtsp:
             return self.coordinator.client.mjpeg_url(self.camera_number)
         return self.coordinator.client.rtsp_url(self.camera_number)

@@ -295,7 +295,12 @@ class SecSpyClient:
         return f"{self._url('++image')}?{urlencode(params)}"
 
     def rtsp_url(self, camera_num: int, *, use_ssl: bool | None = None) -> str:
-        """Build RTSP stream URL with userinfo auth."""
+        """Build RTSP stream URL with userinfo auth.
+
+        SecuritySpy RTSP expects credentials in the URL userinfo. Callers that
+        must avoid embedding passwords should use mjpeg_url() / hls_url() with
+        the auth query parameter instead.
+        """
         ssl = self.base_url.startswith("https") if use_ssl is None else use_ssl
         scheme = "rtsps" if ssl else "rtsp"
         parts = urlsplit(self.base_url)

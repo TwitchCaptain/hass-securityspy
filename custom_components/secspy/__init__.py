@@ -268,17 +268,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
 
 def _camera_number_from_entity(hass: HomeAssistant, entity_id: str) -> int:
-    import re
-
     registry = er.async_get(hass)
     entry = registry.async_get(entity_id)
     if entry is None or entry.unique_id is None:
         raise HomeAssistantError(f"Unknown entity: {entity_id}")
-    # unique_id: {server}_cam{camera_number}_{key}
-    match = re.search(r"_cam(\d+)_", entry.unique_id)
-    if not match:
+    # unique_id: {server}|cam{camera_number}|{key}
+    parts = entry.unique_id.rsplit("|", 2)
+    if len(parts) != 3 or not parts[1].startswith("cam"):
         raise HomeAssistantError(f"Entity is not a secspy camera entity: {entity_id}")
-    return int(match.group(1))
+    try:
+        return int(parts[1].removeprefix("cam"))
+    except ValueError as err:
+        raise HomeAssistantError(
+            f"Cannot parse camera number from {entity_id}"
+        ) from err
 
 
 def _runtime_from_entity(hass: HomeAssistant, entity_id: str) -> SecSpyRuntimeData:

@@ -26,7 +26,7 @@ class SecSpyBaseEntity(CoordinatorEntity[SecSpyCoordinator], Entity):
         super().__init__(coordinator)
         self.camera_number = camera_number
         server_id = coordinator.client.info.uuid if coordinator.client.info else "unknown"
-        self._attr_unique_id = f"{server_id}_cam{camera_number}_{key}"
+        self._attr_unique_id = f"{server_id}|cam{camera_number}|{key}"
         cam = self.camera
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{server_id}_{camera_number}")},
