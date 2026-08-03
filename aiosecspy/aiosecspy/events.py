@@ -238,17 +238,17 @@ class EventStream:
                     event_id=-9999,
                 )
             )
-            buffer = b""
+            buffer = bytearray()
             async for chunk in resp.content.iter_any():
                 if self._stop.is_set():
                     return
-                buffer += chunk
+                buffer.extend(chunk)
                 while True:
                     idx = buffer.find(b"\r")
                     if idx < 0:
                         break
-                    line = buffer[:idx].decode("utf-8", errors="replace")
-                    buffer = buffer[idx + 1 :]
+                    line = bytes(buffer[:idx]).decode("utf-8", errors="replace")
+                    del buffer[: idx + 1]
                     if line.count(" ") < 3:
                         continue
                     gmt_h = (

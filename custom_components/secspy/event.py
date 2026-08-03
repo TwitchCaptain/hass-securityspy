@@ -24,7 +24,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up event entities."""
     runtime = entry.runtime_data
-    entities: list[SecSpyEventEntity] = []
+    entities: list[EventEntity] = []
     for cam_num in runtime.coordinator.data:
         entities.append(
             SecSpyClassifyEvent(runtime.coordinator, cam_num, runtime.min_score)
