@@ -45,6 +45,7 @@ class SecSpyClient:
         scheme = "https" if use_ssl else "http"
         self.base_url = f"{scheme}://{host}:{port}/"
         self._username = username
+        self._password = password
         self._auth = base64.urlsafe_b64encode(
             f"{username}:{password}".encode()
         ).decode()
@@ -296,23 +297,11 @@ class SecSpyClient:
         if self.info:
             port = self.info.http_port or 8000
         user = quote(self._username, safe="")
-        # Password is stored only as auth blob; RTSP needs original — use auth as opaque.
-        # Callers that need RTSP should pass password via a dedicated property.
+        password = quote(self._password, safe="")
         return (
-            f"{scheme}://{user}:{quote(self._password_for_rtsp(), safe='')}@{host}:{port}"
+            f"{scheme}://{user}:{password}@{host}:{port}"
             f"/stream?cameraNum={camera_num}"
         )
-
-    def _password_for_rtsp(self) -> str:
-        """Decode password from auth token for RTSP userinfo."""
-        try:
-            raw = base64.urlsafe_b64decode(self._auth + "==")
-            decoded = raw.decode()
-            if ":" in decoded:
-                return decoded.split(":", 1)[1]
-        except Exception:  # noqa: BLE001
-            pass
-        return ""
 
     def mjpeg_url(self, camera_num: int) -> str:
         """Build ++video MJPEG URL."""

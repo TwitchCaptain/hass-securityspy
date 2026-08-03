@@ -56,14 +56,18 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
 
     async def async_enable_motion_detection(self) -> None:
         """Arm motion capture."""
-        await self.coordinator.client.toggle_motion(self.camera_number, True)
-        if self.camera:
-            self.camera.mode_m = "armed"
-        self.async_write_ha_state()
+        await self._set_motion(True)
 
     async def async_disable_motion_detection(self) -> None:
         """Disarm motion capture."""
-        await self.coordinator.client.toggle_motion(self.camera_number, False)
-        if self.camera:
-            self.camera.mode_m = "disarmed"
-        self.async_write_ha_state()
+        await self._set_motion(False)
+
+    async def _set_motion(self, arm: bool) -> None:
+        await self.coordinator.client.toggle_motion(self.camera_number, arm)
+        cams = dict(self.coordinator.data or {})
+        cam = cams.get(self.camera_number)
+        if cam is not None:
+            cam.mode_m = "armed" if arm else "disarmed"
+            self.coordinator.async_set_updated_data(cams)
+        else:
+            self.async_write_ha_state()

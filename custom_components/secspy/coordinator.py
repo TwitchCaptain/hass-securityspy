@@ -17,6 +17,24 @@ from .const import DOMAIN, EVENT_BUS_TYPE
 _LOGGER = logging.getLogger(__name__)
 
 
+def preserve_runtime_camera_state(
+    old: dict[int, Camera], new: dict[int, Camera]
+) -> dict[int, Camera]:
+    """Copy event-stream runtime fields from old cameras onto a refreshed map."""
+    for num, cam in new.items():
+        prev = old.get(num)
+        if prev is None:
+            continue
+        cam.motion_active = prev.motion_active
+        cam.event_object = prev.event_object
+        cam.score_human = prev.score_human
+        cam.score_vehicle = prev.score_vehicle
+        cam.score_animal = prev.score_animal
+        cam.last_motion_time = prev.last_motion_time
+        cam.trigger_reasons = prev.trigger_reasons
+    return new
+
+
 @dataclass
 class SecSpyRuntimeData:
     """Runtime objects stored on the config entry."""
@@ -142,17 +160,7 @@ class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
 
         if et == EventType.REFRESH and self.client.info is not None:
             # Preserve runtime motion flags across refresh.
-            old = cams
-            cams = dict(self.client.cameras)
-            for num, new_cam in cams.items():
-                if num in old:
-                    new_cam.motion_active = old[num].motion_active
-                    new_cam.event_object = old[num].event_object
-                    new_cam.score_human = old[num].score_human
-                    new_cam.score_vehicle = old[num].score_vehicle
-                    new_cam.score_animal = old[num].score_animal
-                    new_cam.last_motion_time = old[num].last_motion_time
-                    new_cam.trigger_reasons = old[num].trigger_reasons
+            cams = preserve_runtime_camera_state(cams, dict(self.client.cameras))
 
         self.async_set_updated_data(cams)
         self._notify_camera(event.camera_number)

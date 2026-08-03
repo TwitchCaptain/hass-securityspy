@@ -42,7 +42,7 @@ from .const import (
     SERVICE_TRIGGER_MOTION,
     VALID_ARM_MODES,
 )
-from .coordinator import SecSpyCoordinator, SecSpyRuntimeData
+from .coordinator import SecSpyCoordinator, SecSpyRuntimeData, preserve_runtime_camera_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -152,7 +152,12 @@ def _async_register_services(hass: HomeAssistant) -> None:
         else:
             raise HomeAssistantError(f"Unsupported mode: {mode}")
         await runtime.client.refresh()
-        runtime.coordinator.async_set_updated_data(dict(runtime.client.cameras))
+        runtime.coordinator.async_set_updated_data(
+            preserve_runtime_camera_state(
+                dict(runtime.coordinator.data or {}),
+                dict(runtime.client.cameras),
+            )
+        )
 
     async def handle_trigger_motion(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -187,8 +192,14 @@ def _async_register_services(hass: HomeAssistant) -> None:
         path = Path(filename)
         if not path.is_absolute():
             path = Path(hass.config.path(filename))
-        path.parent.mkdir(parents=True, exist_ok=True)
-        await hass.async_add_executor_job(path.write_bytes, data)
+        if not hass.config.is_allowed_path(str(path)):
+            raise HomeAssistantError(f"Path is not allowed: {path}")
+
+        def _write() -> None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+
+        await hass.async_add_executor_job(_write)
 
     hass.services.async_register(
         DOMAIN,
