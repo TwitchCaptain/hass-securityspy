@@ -45,7 +45,12 @@ class Event:
     errors: list[str] = field(default_factory=list)
 
 
-def parse_event_line(text: str, gmt_offset_hours: float = 0.0) -> Event:
+def parse_event_line(
+    text: str,
+    gmt_offset_hours: float = 0.0,
+    *,
+    major_version: int = 6,
+) -> Event:
     """Parse one CR-delimited event stream line."""
     text = text.strip()
     parts = text.split(" ", 3)
@@ -115,9 +120,23 @@ def parse_event_line(text: str, gmt_offset_hours: float = 0.0) -> Event:
         except ValueError:
             bitmask = 0
         for flag in TriggerReason:
-            if bitmask & int(flag):
-                event.reasons.append(flag)
-                event.reason_names.append(TRIGGER_REASON_NAMES.get(flag, flag.name))
+            if bitmask & int(flag) == 0:
+                continue
+            # v5 uses bit 512 for Animal; v6 uses 512 for HomeKit and 1024 for Animal.
+            if (
+                major_version < 6
+                and flag == TriggerReason.HOMEKIT
+                and bitmask & int(TriggerReason.ANIMAL) == 0
+            ):
+                event.reasons.append(TriggerReason.ANIMAL)
+                event.reason_names.append(
+                    TRIGGER_REASON_NAMES[TriggerReason.ANIMAL]
+                )
+                continue
+            if major_version < 6 and flag == TriggerReason.ANIMAL:
+                continue
+            event.reasons.append(flag)
+            event.reason_names.append(TRIGGER_REASON_NAMES.get(flag, flag.name))
 
     return event
 
@@ -256,7 +275,10 @@ class EventStream:
                         if self._client.info
                         else 0.0
                     )
-                    event = parse_event_line(line, gmt_h)
+                    major = (
+                        self._client.info.major_version if self._client.info else 6
+                    )
+                    event = parse_event_line(line, gmt_h, major_version=major)
                     if (
                         event.event_type == EventType.CONFIGCHANGE
                         and self._refresh_on_config_change

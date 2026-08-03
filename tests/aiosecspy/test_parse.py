@@ -74,3 +74,21 @@ def test_parse_trigger_reasons() -> None:
     assert TriggerReason.MOTION in event.reasons
     assert TriggerReason.CAMERA_EVENT in event.reasons
     assert "Motion Detected" in event.reason_names
+
+
+def test_parse_trigger_reasons_v5_animal_bit() -> None:
+    # On v5, bit 512 is Animal (not HomeKit).
+    event = parse_event_line(
+        "20190927092026 4 3 TRIGGER_M 512", major_version=5
+    )
+    assert TriggerReason.ANIMAL in event.reasons
+    assert TriggerReason.HOMEKIT not in event.reasons
+    assert "Animal Detected" in event.reason_names
+
+
+def test_parse_trigger_reasons_v6_homekit_bit() -> None:
+    event = parse_event_line(
+        "20190927092026 4 3 TRIGGER_M 512", major_version=6
+    )
+    assert TriggerReason.HOMEKIT in event.reasons
+    assert "HomeKit Event" in event.reason_names

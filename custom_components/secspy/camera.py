@@ -33,13 +33,15 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
     """SecuritySpy camera with snapshot and optional RTSP stream."""
 
     _attr_name = None  # Use device name as entity name
-    _attr_supported_features = CameraEntityFeature.STREAM
 
     def __init__(self, coordinator, camera_number, *, disable_rtsp: bool) -> None:
         Camera.__init__(self)
         SecSpyBaseEntity.__init__(self, coordinator, camera_number, key="camera")
         self._disable_rtsp = disable_rtsp
-
+        if not disable_rtsp:
+            self._attr_supported_features = CameraEntityFeature.STREAM
+        else:
+            self._attr_supported_features = CameraEntityFeature(0)
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:

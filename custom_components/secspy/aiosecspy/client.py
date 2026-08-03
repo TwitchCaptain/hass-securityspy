@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 from typing import Any
-from urllib.parse import quote, urlencode, urljoin
+from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 import aiohttp
 
@@ -298,11 +298,15 @@ class SecSpyClient:
         """Build RTSP stream URL with userinfo auth."""
         ssl = self.base_url.startswith("https") if use_ssl is None else use_ssl
         scheme = "rtsps" if ssl else "rtsp"
-        # Prefer http port for RTSP when available; SecuritySpy typically uses same host.
-        host = self.base_url.split("://", 1)[1].rstrip("/").rsplit(":", 1)[0]
+        parts = urlsplit(self.base_url)
+        host = parts.hostname or "127.0.0.1"
+        if ":" in host:
+            host = f"[{host}]"
         port = 8000
         if self.info:
             port = self.info.http_port or 8000
+        elif parts.port:
+            port = parts.port
         user = quote(self._username, safe="")
         password = quote(self._password, safe="")
         return (
