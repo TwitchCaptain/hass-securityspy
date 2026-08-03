@@ -6,13 +6,13 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
+from aiosecspy import SecSpyClient
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiosecspy import SecSpyClient
 from .entity import SecSpyBaseEntity
 
 

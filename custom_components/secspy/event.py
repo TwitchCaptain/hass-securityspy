@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from aiosecspy import Event, EventType
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiosecspy import Event, EventType
 from .const import (
     ATTR_EVENT_SCORE_ANIMAL,
     ATTR_EVENT_SCORE_HUMAN,

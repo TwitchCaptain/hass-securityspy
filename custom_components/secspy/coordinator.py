@@ -7,11 +7,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from aiosecspy import Camera, Event, EventType, SecSpyClient, ServerInfo
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .aiosecspy import Camera, Event, EventType, SecSpyClient, ServerInfo
 from .const import DOMAIN, EVENT_BUS_TYPE
 
 _LOGGER = logging.getLogger(__name__)

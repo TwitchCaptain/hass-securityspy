@@ -1,4 +1,4 @@
-# Dependabot keeps GitHub Actions and Python package floors current.
+# Dependabot keeps GitHub Actions and Python package pins current.
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
 version: 2
 updates:
@@ -13,7 +13,7 @@ updates:
       - github-actions
 
   - package-ecosystem: pip
-    directory: /aiosecspy
+    directory: /
     schedule:
       interval: weekly
       day: monday

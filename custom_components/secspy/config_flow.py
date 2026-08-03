@@ -6,6 +6,8 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from aiosecspy import SecSpyClient
+from aiosecspy.exceptions import AuthenticationError, RequestError
 from awesomeversion import AwesomeVersion
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
@@ -13,8 +15,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .aiosecspy import SecSpyClient
-from .aiosecspy.exceptions import AuthenticationError, RequestError
 from .const import (
     CONF_DISABLE_RTSP,
     CONF_MIN_SCORE,

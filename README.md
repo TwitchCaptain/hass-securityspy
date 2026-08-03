@@ -8,6 +8,8 @@ Custom Home Assistant integration that talks to [SecuritySpy](https://www.bensof
 
 Domain: **`secspy`** (avoids clashing with older HACS `securityspy` integrations).
 
+Uses the [`aiosecspy`](https://pypi.org/project/aiosecspy/) Python client (installed automatically via the integration `manifest.json` requirements).
+
 ## Install (HACS)
 
 1. Add this repository as a custom repository (Integration) in HACS, or install once published.
@@ -100,19 +102,6 @@ Pass any entity belonging to the camera (for example the camera entity or motion
 - **Disable RTSP** — use MJPEG (`++video`) for the camera stream instead of RTSP.
 - **Minimum AI classify score** — threshold for classify event entity firings (default 50).
 
-## Architecture
-
-```text
-aiosecspy/                 # publishable async Python client (PyPI)
-custom_components/secspy/  # HACS integration (vendors aiosecspy for install)
-```
-
-The integration vendors `aiosecspy` under `custom_components/secspy/aiosecspy` so HACS works without a PyPI release. After editing the library:
-
-```bash
-python scripts/sync_aiosecspy.py
-```
-
 ## Manual validation checklist (SS5 / SS6)
 
 - [ ] Config flow connects (HTTP and HTTPS).
@@ -128,9 +117,10 @@ python scripts/sync_aiosecspy.py
 ## Development
 
 ```bash
-pip install -e "./aiosecspy[dev]"
-python scripts/sync_aiosecspy.py
-pytest -q
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# Library development lives in https://github.com/TwitchCaptain/aiosecspy
 ```
 
 ## License

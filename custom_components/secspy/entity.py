@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from aiosecspy import Camera
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .aiosecspy import Camera
 from .const import DEFAULT_BRAND, DOMAIN
 from .coordinator import SecSpyCoordinator
 

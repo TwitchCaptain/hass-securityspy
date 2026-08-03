@@ -14,13 +14,22 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - name: Install aiosecspy
-        run: pip install -e "./aiosecspy[dev]"
-      - name: Sync vendored package
-        run: python scripts/sync_aiosecspy.py
-      - name: Pytest
-        run: pytest -q
-      - name: Ruff
+      - name: Install dependencies
         run: |
+          pip install -r requirements.txt
           pip install "ruff==0.16.1"
-          ruff check aiosecspy custom_components/secspy tests
+      - name: Require manifest pin matches requirements.txt
+        run: |
+          python - <<'PY'
+          import json, pathlib, re
+          req = pathlib.Path("requirements.txt").read_text()
+          pins = {m.group(1) for m in re.finditer(r"^(?!#)(\S+==\S+)", req, re.M)}
+          manifest = json.loads(pathlib.Path("custom_components/secspy/manifest.json").read_text())
+          missing = set(manifest["requirements"]) - pins
+          assert not missing, f"manifest requirements not in requirements.txt: {missing}"
+          print("ok:", sorted(manifest["requirements"]))
+          PY
+      - name: Import smoke
+        run: python -c "from importlib.metadata import version; from aiosecspy import SecSpyClient; print(version('aiosecspy'))"
+      - name: Ruff
+        run: ruff check custom_components/secspy
