@@ -83,7 +83,7 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             except SecSpyVersionError:
                 errors["base"] = "version_old"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected error validating SecuritySpy")
                 errors["base"] = "unknown"
             else:

@@ -11,8 +11,8 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .entity import SecSpyBaseEntity
 from .coordinator import preserve_runtime_camera_state
+from .entity import SecSpyBaseEntity
 
 SWITCHES = (
     SwitchEntityDescription(

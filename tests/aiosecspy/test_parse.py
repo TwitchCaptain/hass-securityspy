@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from aiosecspy.const import EventType, TriggerReason
 from aiosecspy.events import parse_event_line
 from aiosecspy.systeminfo import parse_system_info

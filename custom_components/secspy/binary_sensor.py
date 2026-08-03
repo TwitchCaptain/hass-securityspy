@@ -21,7 +21,6 @@ from .const import (
 )
 from .entity import SecSpyBaseEntity
 
-
 BINARY_SENSORS = (
     BinarySensorEntityDescription(
         key="motion",

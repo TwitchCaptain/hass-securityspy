@@ -9,18 +9,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+          cache: pip
       - name: Install aiosecspy
         run: pip install -e "./aiosecspy[dev]"
       - name: Sync vendored package
         run: python scripts/sync_aiosecspy.py
       - name: Pytest
         run: pytest -q
-      - name: Ruff (optional)
-        continue-on-error: true
+      - name: Ruff
         run: |
-          pip install ruff
+          pip install "ruff==0.16.1"
           ruff check aiosecspy custom_components/secspy tests

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
+from typing import Any, Self
 from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 import aiohttp
@@ -99,7 +99,7 @@ class SecSpyClient:
             await self._session.close()
             self._session = None
 
-    async def __aenter__(self) -> SecSpyClient:
+    async def __aenter__(self) -> Self:
         await self.open()
         return self
 

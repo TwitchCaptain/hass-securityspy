@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -36,7 +38,7 @@ async def async_setup_entry(
 class SecSpyClassifyEvent(SecSpyBaseEntity, EventEntity):
     """Fires when CLASSIFY events arrive with scores above threshold."""
 
-    _attr_event_types = ["human", "vehicle", "animal", "classify"]
+    _attr_event_types: ClassVar[list[str]] = ["human", "vehicle", "animal", "classify"]
     _attr_name = "Classification"
     _attr_device_class = EventDeviceClass.MOTION
 
@@ -83,7 +85,7 @@ class SecSpyClassifyEvent(SecSpyBaseEntity, EventEntity):
 class SecSpyTriggerEvent(SecSpyBaseEntity, EventEntity):
     """Fires on TRIGGER_M / TRIGGER_A."""
 
-    _attr_event_types = ["motion", "action"]
+    _attr_event_types: ClassVar[list[str]] = ["motion", "action"]
     _attr_name = "Trigger"
     _attr_device_class = EventDeviceClass.MOTION
 

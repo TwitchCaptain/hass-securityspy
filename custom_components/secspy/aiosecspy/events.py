@@ -6,7 +6,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from .const import (
@@ -67,12 +67,12 @@ def parse_event_line(
 
     try:
         # Local wall clock from SS; apply GMT offset hint when present.
-        naive = datetime.strptime(stamp, EVENT_TIME_FORMAT)
+        naive = datetime.strptime(stamp, EVENT_TIME_FORMAT)  # noqa: DTZ007
         # Keep as naive local-ish; consumers can treat as server local time.
         event.when = naive
         _ = gmt_offset_hours  # reserved for future tz-aware conversion
     except ValueError:
-        event.when = datetime.now(timezone.utc).replace(tzinfo=None)
+        event.when = datetime.now(UTC).replace(tzinfo=None)
         event.errors.append("date_parse_fail")
 
     try:
@@ -211,7 +211,7 @@ class EventStream:
                 result = cb(event)
                 if asyncio.iscoroutine(result) or isinstance(result, Awaitable):
                     await result  # type: ignore[arg-type]
-            except Exception:  # noqa: BLE001 — isolate listener failures
+            except Exception:
                 _LOGGER.exception("Event listener failed for %s", event.event_type)
 
     async def _watch_loop(self, reconnect_delay: float) -> None:
@@ -251,9 +251,9 @@ class EventStream:
 
     async def _run_once(self) -> None:
         assert self._client.session is not None
-        url = self._client._url("++eventStream")  # noqa: SLF001
-        params = self._client._params({"version": "3"})  # noqa: SLF001
-        timeout = self._client._stream_timeout()  # noqa: SLF001
+        url = self._client._url("++eventStream")
+        params = self._client._params({"version": "3"})
+        timeout = self._client._stream_timeout()
 
         async with self._client.session.get(
             url, params=params, timeout=timeout, ssl=self._client.verify_ssl
