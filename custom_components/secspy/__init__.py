@@ -83,7 +83,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bo
         client=client,
         coordinator=coordinator,
         server_info=server_info,
-        disable_rtsp=entry.options.get(CONF_DISABLE_RTSP, False),
+        disable_rtsp=entry.options.get(CONF_DISABLE_RTSP, True),
         min_score=min_score,
     )
 
@@ -138,6 +138,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
     async def handle_enable_preset(call: ServiceCall) -> None:
         runtime = _runtime_for_entry_id(call.data.get("config_entry_id"))
         await runtime.client.set_schedule_preset(int(call.data[ATTR_PRESET_ID]))
+        await runtime.client.refresh()
+        runtime.coordinator.async_set_updated_data(
+            preserve_runtime_camera_state(
+                dict(runtime.coordinator.data or {}),
+                dict(runtime.client.cameras),
+            )
+        )
 
     async def handle_set_arm_mode(call: ServiceCall) -> None:
         entity_id = call.data.get("entity_id")

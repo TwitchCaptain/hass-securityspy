@@ -93,7 +93,7 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=info["title"],
                     data=user_input,
                     options={
-                        CONF_DISABLE_RTSP: False,
+                        CONF_DISABLE_RTSP: True,
                         CONF_MIN_SCORE: DEFAULT_MIN_SCORE,
                     },
                 )
@@ -129,7 +129,7 @@ class SecSpyOptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(
                         CONF_DISABLE_RTSP,
-                        default=self.config_entry.options.get(CONF_DISABLE_RTSP, False),
+                        default=self.config_entry.options.get(CONF_DISABLE_RTSP, True),
                     ): bool,
                     vol.Optional(
                         CONF_MIN_SCORE,
