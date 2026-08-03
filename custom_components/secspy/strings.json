@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to SecuritySpy",
+        "description": "Enter your SecuritySpy web server details. Use an admin user.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "use_ssl": "Use HTTPS",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to SecuritySpy",
+      "invalid_auth": "Invalid username or password",
+      "version_old": "SecuritySpy version is too old (need 5.3.4+)",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This SecuritySpy server is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SecuritySpy options",
+        "data": {
+          "disable_rtsp": "Disable RTSP (use MJPEG instead)",
+          "min_event_score": "Minimum AI classify score for event entities"
+        }
+      }
+    }
+  }
+}

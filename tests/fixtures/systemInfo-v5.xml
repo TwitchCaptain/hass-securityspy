@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<system>
+<server>
+	<name>SecuritySpy</name>
+	<version>5.5.0</version>
+	<uuid>TESTUUIDV5</uuid>
+	<ip1>192.168.1.1</ip1>
+	<http-enabled>yes</http-enabled>
+	<http-port>8000</http-port>
+	<https-enabled>no</https-enabled>
+	<https-port>8001</https-port>
+	<seconds-from-gmt>-28800</seconds-from-gmt>
+	<camera-count>1</camera-count>
+</server>
+<cameralist>
+<camera>
+	<number>1</number>
+	<connected>yes</connected>
+	<width>2304</width>
+	<height>1296</height>
+	<mode-c>armed</mode-c>
+	<mode-m>armed</mode-m>
+	<mode-a>armed</mode-a>
+	<hasaudio>yes</hasaudio>
+	<ptzcapabilities>0</ptzcapabilities>
+	<name>Porch</name>
+	<schedule-id-cc>1</schedule-id-cc>
+	<schedule-id-mc>2</schedule-id-mc>
+	<schedule-id-a>3</schedule-id-a>
+	<schedule-override-cc>0</schedule-override-cc>
+	<schedule-override-mc>1</schedule-override-mc>
+	<schedule-override-a>2</schedule-override-a>
+</camera>
+</cameralist>
+<schedulelist><schedule><id>0</id><name>Disarmed 24/7</name></schedule><schedule><id>1</id><name>Armed 24/7</name></schedule></schedulelist>
+<scheduleoverridelist><scheduleoverride><id>0</id><name>No Override</name></scheduleoverride></scheduleoverridelist>
+</system>

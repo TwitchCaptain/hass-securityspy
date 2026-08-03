@@ -1,0 +1,126 @@
+set_arm_mode:
+  name: Set arm mode
+  description: Arm or disarm continuous, motion, or action mode for a camera.
+  fields:
+    entity_id:
+      name: Entity
+      description: Any secspy camera-related entity for the target camera.
+      required: true
+      selector:
+        entity:
+          integration: secspy
+    mode:
+      name: Mode
+      required: true
+      selector:
+        select:
+          options:
+            - continuous
+            - on_motion
+            - action
+    enabled:
+      name: Enabled
+      required: true
+      selector:
+        boolean:
+
+trigger_motion:
+  name: Trigger motion
+  description: Manually trigger motion detection on a camera.
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          integration: secspy
+
+set_schedule:
+  name: Set schedule
+  description: Assign a schedule ID to a camera mode (C/M/A/X).
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          integration: secspy
+    mode:
+      name: Mode
+      required: true
+      selector:
+        select:
+          options:
+            - C
+            - M
+            - A
+            - X
+    schedule_id:
+      name: Schedule ID
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+
+set_schedule_override:
+  name: Set schedule override
+  description: Assign a schedule override ID to a camera mode (C/M/A/X).
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          integration: secspy
+    mode:
+      name: Mode
+      required: true
+      selector:
+        select:
+          options:
+            - C
+            - M
+            - A
+            - X
+    override_id:
+      name: Override ID
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+
+enable_schedule_preset:
+  name: Enable schedule preset
+  description: Activate a server-wide schedule preset.
+  fields:
+    preset_id:
+      name: Preset ID
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+    config_entry_id:
+      name: Config entry ID
+      required: false
+      selector:
+        text:
+
+download_latest_motion_recording:
+  name: Download latest motion recording
+  description: Download the newest motion clip for a camera into Home Assistant.
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          integration: secspy
+    filename:
+      name: Filename
+      description: Absolute path or path relative to the HA config directory.
+      required: true
+      selector:
+        text:
