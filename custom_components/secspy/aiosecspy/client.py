@@ -123,27 +123,34 @@ class SecSpyClient:
                 timeout=self._timeout(),
                 ssl=self.verify_ssl,
             ) as resp:
-                body = await resp.read()
-                if resp.status in {401, 403}:
-                    raise AuthenticationError(
-                        f"authentication failed for {api}: HTTP {resp.status}"
-                    )
-                if resp.status == 404 and expect_ok:
-                    raise UnsupportedError(f"{api} returned 404")
-                if resp.status >= 400:
-                    raise RequestError(
-                        f"{api} failed: HTTP {resp.status} {body[:200]!r}"
-                    )
-                if expect_ok:
-                    text = body.decode("utf-8", errors="replace").strip()
-                    compact = "".join(text.split())
-                    if not (text.endswith("OK") or '"result":"OK"' in compact):
-                        raise RequestError(f"{api} unexpected response: {text[:200]!r}")
-                return body
+                return await self._read_response(api, resp, expect_ok=expect_ok)
         except (AuthenticationError, UnsupportedError, RequestError):
             raise
         except aiohttp.ClientError as err:
             raise RequestError(f"{api} transport error: {err}") from err
+
+    async def _read_response(
+        self,
+        label: str,
+        resp: aiohttp.ClientResponse,
+        *,
+        expect_ok: bool = False,
+    ) -> bytes:
+        body = await resp.read()
+        if resp.status in {401, 403}:
+            raise AuthenticationError(
+                f"authentication failed for {label}: HTTP {resp.status}"
+            )
+        if resp.status == 404 and expect_ok:
+            raise UnsupportedError(f"{label} returned 404")
+        if resp.status >= 400:
+            raise RequestError(f"{label} failed: HTTP {resp.status} {body[:200]!r}")
+        if expect_ok:
+            text = body.decode("utf-8", errors="replace").strip()
+            compact = "".join(text.split())
+            if not (text.endswith("OK") or '"result":"OK"' in compact):
+                raise RequestError(f"{label} unexpected response: {text[:200]!r}")
+        return body
 
     async def _request_text(
         self, api: str, params: dict[str, Any] | None = None
@@ -399,11 +406,18 @@ class SecSpyClient:
             if "://" in path:
                 if self._session is None:
                     raise RequestError("client session is not open")
-                async with self._session.get(
-                    path, params={"auth": self._auth}, timeout=self._timeout()
-                ) as resp:
-                    resp.raise_for_status()
-                    return await resp.read()
+                try:
+                    async with self._session.get(
+                        path,
+                        params={"auth": self._auth},
+                        timeout=self._timeout(),
+                        ssl=self.verify_ssl,
+                    ) as resp:
+                        return await self._read_response(path, resp)
+                except (AuthenticationError, UnsupportedError, RequestError):
+                    raise
+                except aiohttp.ClientError as err:
+                    raise RequestError(f"{path} transport error: {err}") from err
             path = "++" + path
         # href may already include query string
         if "?" in path:

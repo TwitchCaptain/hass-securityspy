@@ -40,6 +40,10 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
+class SecSpyVersionError(Exception):
+    """Raised when SecuritySpy is older than the supported minimum."""
+
+
 async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]:
     """Validate credentials and return server identifiers."""
     session = async_get_clientsession(hass, verify_ssl=data.get(CONF_VERIFY_SSL, True))
@@ -54,7 +58,7 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
     )
     info = await client.refresh()
     if AwesomeVersion(info.version) < AwesomeVersion(MIN_SECSPY_VERSION):
-        raise ValueError("version_old")
+        raise SecSpyVersionError(info.version)
     return {"title": info.name, "uuid": info.uuid, "version": info.version}
 
 
@@ -75,7 +79,7 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
             except RequestError:
                 errors["base"] = "cannot_connect"
-            except ValueError:
+            except SecSpyVersionError:
                 errors["base"] = "version_old"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error validating SecuritySpy")
