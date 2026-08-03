@@ -224,7 +224,7 @@ class EventStream:
         timeout = self._client._stream_timeout()  # noqa: SLF001
 
         async with self._client.session.get(
-            url, params=params, timeout=timeout
+            url, params=params, timeout=timeout, ssl=self._client.verify_ssl
         ) as resp:
             if resp.status in {401, 403}:
                 from .exceptions import AuthenticationError
