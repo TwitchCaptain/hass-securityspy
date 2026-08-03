@@ -287,6 +287,10 @@ def _runtime_from_entity(hass: HomeAssistant, entity_id: str) -> SecSpyRuntimeDa
     if entry is None or entry.config_entry_id is None:
         raise HomeAssistantError(f"Unknown entity: {entity_id}")
     config_entry = hass.config_entries.async_get_entry(entry.config_entry_id)
-    if config_entry is None or not hasattr(config_entry, "runtime_data"):
+    if (
+        config_entry is None
+        or config_entry.state is not ConfigEntryState.LOADED
+        or not isinstance(getattr(config_entry, "runtime_data", None), SecSpyRuntimeData)
+    ):
         raise HomeAssistantError("SecuritySpy config entry is not loaded")
     return config_entry.runtime_data

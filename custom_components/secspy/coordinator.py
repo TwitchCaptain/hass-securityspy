@@ -101,11 +101,11 @@ class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
     @callback
     def _notify_camera(self, camera_number: int | None) -> None:
         if camera_number is None:
-            for cbs in self._device_callbacks.values():
-                for cb in cbs:
+            for cbs in list(self._device_callbacks.values()):
+                for cb in list(cbs):
                     cb()
             return
-        for cb in self._device_callbacks.get(camera_number, []):
+        for cb in list(self._device_callbacks.get(camera_number, [])):
             cb()
 
     async def _on_event(self, event: Event) -> None:
