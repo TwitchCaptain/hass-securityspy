@@ -184,6 +184,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
         await runtime.client.set_schedule(
             camera_number, mode, int(call.data[ATTR_SCHEDULE_ID])
         )
+        await runtime.client.refresh()
+        runtime.coordinator.async_set_updated_data(
+            preserve_runtime_camera_state(
+                dict(runtime.coordinator.data or {}),
+                dict(runtime.client.cameras),
+            )
+        )
 
     async def handle_set_override(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -192,6 +199,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
         mode = CameraMode(str(call.data[ATTR_MODE]).upper())
         await runtime.client.set_schedule_override(
             camera_number, mode, int(call.data[ATTR_OVERRIDE_ID])
+        )
+        await runtime.client.refresh()
+        runtime.coordinator.async_set_updated_data(
+            preserve_runtime_camera_state(
+                dict(runtime.coordinator.data or {}),
+                dict(runtime.client.cameras),
+            )
         )
 
     async def handle_download(call: ServiceCall) -> None:

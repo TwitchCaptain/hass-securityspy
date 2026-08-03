@@ -54,9 +54,9 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
     async def stream_source(self) -> str | None:
         """Return stream URL.
 
-        RTSP URLs include userinfo credentials (SecuritySpy requirement). By
-        default Disable RTSP is on so MJPEG (auth query) is used; turn it off
-        only if you opt into RTSP stream URLs with embedded credentials.
+        HA camera entities require a URL; MJPEG is default to reduce RTSP
+        password exposure (no proxy). RTSP embeds userinfo credentials when
+        Disable RTSP is off.
         """
         if self._disable_rtsp:
             return self.coordinator.client.mjpeg_url(self.camera_number)
