@@ -9,7 +9,11 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -67,7 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bo
     try:
         server_info = await client.refresh()
     except AuthenticationError as err:
-        raise ConfigEntryNotReady("Invalid SecuritySpy credentials") from err
+        raise ConfigEntryAuthFailed("Invalid SecuritySpy credentials") from err
     except RequestError as err:
         raise ConfigEntryNotReady(f"Cannot connect to SecuritySpy: {err}") from err
 

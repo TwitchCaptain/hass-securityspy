@@ -215,11 +215,24 @@ class EventStream:
                 _LOGGER.exception("Event listener failed for %s", event.event_type)
 
     async def _watch_loop(self, reconnect_delay: float) -> None:
+        from .exceptions import AuthenticationError
+
         while not self._stop.is_set():
             try:
                 await self._run_once()
             except asyncio.CancelledError:
                 raise
+            except AuthenticationError as err:
+                _LOGGER.error("Event stream authentication failed: %s", err)
+                await self._emit(
+                    Event(
+                        event_type=EventType.DISCONNECTED,
+                        msg=str(err),
+                        event_id=-10000,
+                    )
+                )
+                self.running = False
+                return
             except Exception as err:  # noqa: BLE001
                 _LOGGER.warning("Event stream error: %s", err)
                 await self._emit(
