@@ -15,11 +15,6 @@ from .const import DOMAIN, EVENT_BUS_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
-# Synthetic lifecycle events the library emits (not from the wire). They drive
-# entity availability and reauth, and never reach the HA event bus.
-_LIFECYCLE_EVENTS = frozenset({EventType.CONNECTED, EventType.DISCONNECTED, EventType.AUTHFAIL})
-
-
 async def async_refresh_camera_state(coordinator: SecSpyCoordinator) -> None:
     """Refresh ++systemInfo and push the new camera map to every entity.
 

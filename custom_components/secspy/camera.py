@@ -37,6 +37,9 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
     _attr_name = None  # Use device name as entity name
 
     def __init__(self, coordinator, camera_number, *, disable_rtsp: bool) -> None:
+        # BaseCoordinatorEntity.__init__ is not cooperative (it never calls
+        # super().__init__()), so the chain would never reach Camera.__init__;
+        # both initializers must be invoked directly.
         Camera.__init__(self)
         SecSpyBaseEntity.__init__(self, coordinator, camera_number, key="camera")
         self._disable_rtsp = disable_rtsp
