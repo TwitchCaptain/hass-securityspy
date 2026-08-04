@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from aiohttp import web
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_aiohttp_proxy_web
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import SecSpyBaseEntity
@@ -30,7 +32,7 @@ async def async_setup_entry(
 
 
 class SecSpyCamera(SecSpyBaseEntity, Camera):
-    """SecuritySpy camera with snapshot and optional RTSP stream."""
+    """SecuritySpy camera with snapshot and stream (proxied MJPEG or RTSP)."""
 
     _attr_name = None  # Use device name as entity name
 
@@ -38,10 +40,7 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
         Camera.__init__(self)
         SecSpyBaseEntity.__init__(self, coordinator, camera_number, key="camera")
         self._disable_rtsp = disable_rtsp
-        if not disable_rtsp:
-            self._attr_supported_features = CameraEntityFeature.STREAM
-        else:
-            self._attr_supported_features = CameraEntityFeature(0)
+        self._attr_supported_features = CameraEntityFeature.STREAM
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
@@ -52,30 +51,44 @@ class SecSpyCamera(SecSpyBaseEntity, Camera):
         )
 
     async def stream_source(self) -> str | None:
-        """Return stream URL.
+        """Return the RTSP stream URL (credentials in userinfo).
 
-        HA camera entities require a URL; MJPEG is default to reduce RTSP
-        password exposure (no proxy). RTSP embeds userinfo credentials when
-        Disable RTSP is off.
+        Only used when Disable RTSP is off; the user explicitly opts into
+        handing the embedded credentials to their frontend/stream player.
         """
         if self._disable_rtsp:
-            return self.coordinator.client.mjpeg_url(self.camera_number)
+            return None
         return self.coordinator.client.rtsp_url(self.camera_number)
 
-    async def async_enable_motion_detection(self) -> None:
-        """Arm motion capture."""
-        await self._set_motion(True)
+    async def handle_async_mjpeg_stream(
+        self, request: web.Request
+    ) -> web.StreamResponse:
+        """Proxy the SecuritySpy ++video MJPEG stream through Home Assistant.
 
-    async def async_disable_motion_detection(self) -> None:
-        """Disarm motion capture."""
-        await self._set_motion(False)
+        Used when Disable RTSP is on: HA holds the credentials server-side and
+        the frontend talks only to HA, so nothing secret lands in a URL.
+        """
+        if self._disable_rtsp:
+            return await self._proxy_video(request)
+        return await super().handle_async_mjpeg_stream(request)
 
-    async def _set_motion(self, arm: bool) -> None:
-        await self.coordinator.client.toggle_motion(self.camera_number, arm)
-        cams = dict(self.coordinator.data or {})
-        cam = cams.get(self.camera_number)
-        if cam is not None:
-            cam.mode_m = "armed" if arm else "disarmed"
-            self.coordinator.async_set_updated_data(cams)
-        else:
-            self.async_write_ha_state()
+    async def _proxy_video(self, request: web.Request) -> web.StreamResponse:
+        url = self.coordinator.client.mjpeg_url(self.camera_number)
+        verify_ssl = self.coordinator.client.verify_ssl
+        # Returns a response object, or None if the client disconnected before
+        # the upstream stream started; gateway errors raise HTTP errors here.
+        response = await async_aiohttp_proxy_web(
+            self.hass, request, self._video_request(url, verify_ssl=verify_ssl)
+        )
+        if response is None:
+            raise web.HTTPClientError(text="stream cancelled")
+        return response
+
+    async def _video_request(self, url: str, *, verify_ssl: bool):
+        # Passed as an unawaited coroutine so HA can apply its own timeout and
+        # 502/504 mapping while the connection is being established.
+        client = self.coordinator.client
+        session = client.session
+        if session is None or session.closed:
+            raise web.HTTPServiceUnavailable(text="SecuritySpy client is closed")
+        return await session.get(url, ssl=verify_ssl)

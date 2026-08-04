@@ -1,0 +1,3 @@
+# Dev/test-only dependencies for the custom component.
+pytest-homeassistant-custom-component==0.13.351
+ruff==0.16.1

@@ -49,7 +49,7 @@ from .const import (
 from .coordinator import (
     SecSpyCoordinator,
     SecSpyRuntimeData,
-    preserve_runtime_camera_state,
+    async_refresh_camera_state,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -142,18 +142,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
     async def handle_enable_preset(call: ServiceCall) -> None:
         runtime = _runtime_for_entry_id(call.data.get("config_entry_id"))
         await runtime.client.set_schedule_preset(int(call.data[ATTR_PRESET_ID]))
-        await runtime.client.refresh()
-        runtime.coordinator.async_set_updated_data(
-            preserve_runtime_camera_state(
-                dict(runtime.coordinator.data or {}),
-                dict(runtime.client.cameras),
-            )
-        )
+        await async_refresh_camera_state(runtime.coordinator)
 
     async def handle_set_arm_mode(call: ServiceCall) -> None:
-        entity_id = call.data.get("entity_id")
-        if not entity_id:
-            raise HomeAssistantError("entity_id is required")
+        entity_id = call.data["entity_id"]
         camera_number = _camera_number_from_entity(hass, entity_id)
         runtime = _runtime_from_entity(hass, entity_id)
         mode = call.data[ATTR_MODE]
@@ -166,13 +158,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await runtime.client.toggle_continuous(camera_number, enabled)
         else:
             raise HomeAssistantError(f"Unsupported mode: {mode}")
-        await runtime.client.refresh()
-        runtime.coordinator.async_set_updated_data(
-            preserve_runtime_camera_state(
-                dict(runtime.coordinator.data or {}),
-                dict(runtime.client.cameras),
-            )
-        )
+        await async_refresh_camera_state(runtime.coordinator)
 
     async def handle_trigger_motion(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -188,13 +174,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         await runtime.client.set_schedule(
             camera_number, mode, int(call.data[ATTR_SCHEDULE_ID])
         )
-        await runtime.client.refresh()
-        runtime.coordinator.async_set_updated_data(
-            preserve_runtime_camera_state(
-                dict(runtime.coordinator.data or {}),
-                dict(runtime.client.cameras),
-            )
-        )
+        await async_refresh_camera_state(runtime.coordinator)
 
     async def handle_set_override(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -204,13 +184,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         await runtime.client.set_schedule_override(
             camera_number, mode, int(call.data[ATTR_OVERRIDE_ID])
         )
-        await runtime.client.refresh()
-        runtime.coordinator.async_set_updated_data(
-            preserve_runtime_camera_state(
-                dict(runtime.coordinator.data or {}),
-                dict(runtime.client.cameras),
-            )
-        )
+        await async_refresh_camera_state(runtime.coordinator)
 
     async def handle_download(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -266,7 +240,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required("entity_id"): cv.entity_id,
-                vol.Required(ATTR_MODE): vol.In(["C", "M", "A", "X", "c", "m", "a", "x"]),
+                vol.Required(ATTR_MODE): vol.All(vol.Upper, vol.In(["C", "M", "A", "X"])),
                 vol.Required(ATTR_SCHEDULE_ID): vol.Coerce(int),
             }
         ),
@@ -278,7 +252,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required("entity_id"): cv.entity_id,
-                vol.Required(ATTR_MODE): vol.In(["C", "M", "A", "X", "c", "m", "a", "x"]),
+                vol.Required(ATTR_MODE): vol.All(vol.Upper, vol.In(["C", "M", "A", "X"])),
                 vol.Required(ATTR_OVERRIDE_ID): vol.Coerce(int),
             }
         ),

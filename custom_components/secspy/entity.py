@@ -44,12 +44,16 @@ class SecSpyBaseEntity(CoordinatorEntity[SecSpyCoordinator], Entity):
 
     @property
     def available(self) -> bool:
-        """Entity is available when coordinator has camera data."""
-        return self.camera is not None
+        """Entity is available when the stream is live and has camera data."""
+        return self.coordinator.stream_connected and self.camera is not None
 
 
 class SecSpyServerEntity(CoordinatorEntity[SecSpyCoordinator], Entity):
-    """Base entity for the NVR/server device."""
+    """Base entity for the NVR/server device.
+
+    Reserved for future server-level entities (e.g. storage usage sensors);
+    nothing subclasses it yet.
+    """
 
     _attr_has_entity_name = True
 

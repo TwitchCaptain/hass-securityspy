@@ -12,12 +12,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: pip
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install "ruff==0.16.1"
+        run: pip install -r requirements.txt -r requirements_test.txt
       - name: Require manifest pin matches requirements.txt
         run: |
           python - <<'PY'
@@ -29,7 +27,7 @@ jobs:
           assert not missing, f"manifest requirements not in requirements.txt: {missing}"
           print("ok:", sorted(manifest["requirements"]))
           PY
-      - name: Import smoke
-        run: python -c "from importlib.metadata import version; from aiosecspy import SecSpyClient; print(version('aiosecspy'))"
+      - name: Pytest
+        run: pytest -q tests
       - name: Ruff
-        run: ruff check custom_components/secspy
+        run: ruff check custom_components/secspy tests

@@ -38,7 +38,7 @@ async def async_setup_entry(
 class SecSpyClassifyEvent(SecSpyBaseEntity, EventEntity):
     """Fires when CLASSIFY events arrive with scores above threshold."""
 
-    _attr_event_types: ClassVar[list[str]] = ["human", "vehicle", "animal", "classify"]
+    _attr_event_types: ClassVar[list[str]] = ["human", "vehicle", "animal"]
     _attr_name = "Classification"
     _attr_device_class = EventDeviceClass.MOTION
 
@@ -62,24 +62,26 @@ class SecSpyClassifyEvent(SecSpyBaseEntity, EventEntity):
             return
         if event.camera_number != self.camera_number:
             return
-        fired = False
-        data = {
-            ATTR_EVENT_SCORE_HUMAN: event.classify_human,
-            ATTR_EVENT_SCORE_VEHICLE: event.classify_vehicle,
-            ATTR_EVENT_SCORE_ANIMAL: event.classify_animal,
+        # _trigger_event only stages one event until async_write_ha_state(),
+        # so fire a single event for the top-scoring class at or above the
+        # threshold. All class scores ride along in the event attributes.
+        scores = {
+            "human": event.classify_human,
+            "vehicle": event.classify_vehicle,
+            "animal": event.classify_animal,
         }
-        if event.classify_human >= self._min_score:
-            self._trigger_event("human", data)
-            fired = True
-        if event.classify_vehicle >= self._min_score:
-            self._trigger_event("vehicle", data)
-            fired = True
-        if event.classify_animal >= self._min_score:
-            self._trigger_event("animal", data)
-            fired = True
-        if fired:
-            self._trigger_event("classify", data)
-            self.async_write_ha_state()
+        top_class, top_score = max(scores.items(), key=lambda item: item[1])
+        if top_score < self._min_score:
+            return
+        self._trigger_event(
+            top_class,
+            {
+                ATTR_EVENT_SCORE_HUMAN: event.classify_human,
+                ATTR_EVENT_SCORE_VEHICLE: event.classify_vehicle,
+                ATTR_EVENT_SCORE_ANIMAL: event.classify_animal,
+            },
+        )
+        self.async_write_ha_state()
 
 
 class SecSpyTriggerEvent(SecSpyBaseEntity, EventEntity):

@@ -99,8 +99,10 @@ Pass any entity belonging to the camera (for example the camera entity or motion
 
 ## Options
 
-- **Disable RTSP** — use MJPEG (`++video`) for the camera stream instead of RTSP.
-- **Minimum AI classify score** — threshold for classify event entity firings (default 50).
+- **Disable RTSP** — the default. HA proxies the camera's MJPEG (`++video`) stream itself, so no credential-bearing URL ever reaches your frontend. Turn it off to hand the raw RTSP URL (credentials in userinfo) to your stream player instead.
+- **Minimum AI classify score** — threshold for classify event entity firings (default 50). The `detected_object` sensor and motion attributes always show the raw scores regardless of this threshold.
+
+Cameras added to SecuritySpy after setup need an integration reload before entities appear (the stream's `CONFIGCHANGE` refresh updates state, but does not create new entities).
 
 ## Manual validation checklist (SS5 / SS6)
 

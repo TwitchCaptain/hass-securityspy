@@ -11,7 +11,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import preserve_runtime_camera_state
+from .coordinator import async_refresh_camera_state
 from .entity import SecSpyBaseEntity
 
 SWITCHES = (
@@ -87,11 +87,4 @@ class SecSpyArmSwitch(SecSpyBaseEntity, SwitchEntity):
             await client.toggle_actions(self.camera_number, arm)
         else:
             await client.toggle_continuous(self.camera_number, arm)
-        await client.refresh()
-        self.coordinator.async_set_updated_data(
-            preserve_runtime_camera_state(
-                dict(self.coordinator.data or {}),
-                dict(client.cameras),
-            )
-        )
-        self.async_write_ha_state()
+        await async_refresh_camera_state(self.coordinator)

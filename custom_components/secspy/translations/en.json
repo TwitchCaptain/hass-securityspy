@@ -12,6 +12,14 @@
           "use_ssl": "Use HTTPS",
           "verify_ssl": "Verify SSL certificate"
         }
+      },
+      "reauth_confirm": {
+        "title": "Update SecuritySpy credentials",
+        "description": "The stored credentials were rejected by the server. Enter them again.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -21,7 +29,8 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "This SecuritySpy server is already configured"
+      "already_configured": "This SecuritySpy server is already configured",
+      "reauth_successful": "Credentials updated"
     }
   },
   "options": {
@@ -29,7 +38,7 @@
       "init": {
         "title": "SecuritySpy options",
         "data": {
-          "disable_rtsp": "Disable RTSP (use MJPEG instead)",
+          "disable_rtsp": "Disable RTSP (proxy MJPEG through Home Assistant)",
           "min_event_score": "Minimum AI classify score for event entities"
         }
       }
