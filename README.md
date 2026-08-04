@@ -32,7 +32,9 @@ Per camera device:
 | `camera` | Snapshot + RTSP (or MJPEG if RTSP disabled in options) |
 | `button` | PTZ controls / presets when the camera supports them |
 
-Also fires bus events: `secspy_event` with `type`, `camera_number`, scores, and reasons.
+The server device carries a diagnostic **Event stream** connectivity sensor; camera entities stay available across brief stream reconnects, so alert on that sensor if you want to know about outages.
+
+Also fires bus events: `secspy_event` with `type`, `camera_number`, `camera_name`, `trigger_reasons`, and `event_score_human` / `event_score_vehicle` / `event_score_animal`.
 
 ## Automations
 
@@ -41,12 +43,12 @@ Also fires bus events: `secspy_event` with `type`, `camera_number`, scores, and 
 ```yaml
 automation:
   - alias: Porch motion lights
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id: binary_sensor.porch_motion
         to: "on"
-    action:
-      - service: light.turn_on
+    actions:
+      - action: light.turn_on
         target:
           entity_id: light.porch
 ```
@@ -56,14 +58,14 @@ automation:
 ```yaml
 automation:
   - alias: Human at door
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id: event.door_classification
-    condition:
+    conditions:
       - condition: template
         value_template: "{{ trigger.to_state.attributes.event_type == 'human' }}"
-    action:
-      - service: notify.mobile_app
+    actions:
+      - action: notify.mobile_app
         data:
           message: "Human at the door"
 ```
@@ -73,13 +75,13 @@ automation:
 ```yaml
 automation:
   - alias: Any SecuritySpy trigger
-    trigger:
-      - platform: event
+    triggers:
+      - trigger: event
         event_type: secspy_event
         event_data:
           type: TRIGGER_M
-    action:
-      - service: persistent_notification.create
+    actions:
+      - action: persistent_notification.create
         data:
           message: "Motion on camera {{ trigger.event.data.camera_number }}"
 ```
@@ -102,7 +104,7 @@ Pass any entity belonging to the camera (for example the camera entity or motion
 - **Disable RTSP** — the default. HA proxies the camera's MJPEG (`++video`) stream itself, so no credential-bearing URL ever reaches your frontend. Turn it off to hand the raw RTSP URL (credentials in userinfo) to your stream player instead.
 - **Minimum AI classify score** — threshold for classify event entity firings (default 50). The `detected_object` sensor and motion attributes always show the raw scores regardless of this threshold.
 
-Cameras added to SecuritySpy after setup need an integration reload before entities appear (the stream's `CONFIGCHANGE` refresh updates state, but does not create new entities).
+Cameras added to SecuritySpy after setup appear automatically: the stream's `CONFIGCHANGE` refresh re-reads the camera list and the integration creates entities for newcomers without a reload.
 
 ## Manual validation checklist (SS5 / SS6)
 

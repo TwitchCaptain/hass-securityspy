@@ -15,10 +15,11 @@ from .const import DOMAIN, EVENT_BUS_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_refresh_camera_state(coordinator: SecSpyCoordinator) -> None:
     """Refresh ++systemInfo and push the new camera map to every entity.
 
-    The client's refresh already carries event-stream runtime state (motion,
+    The client's refresh carries event-stream runtime state (motion,
     classification) onto the new camera objects, so this is the one call
     mutating services need after talking to SecuritySpy.
     """
@@ -38,16 +39,21 @@ class SecSpyRuntimeData:
 
 
 class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
-    """Push-driven coordinator fed by the SecuritySpy event stream."""
+    """Push-driven coordinator fed by the SecuritySpy event stream.
+
+    The aiosecspy event stream already folds every wire event into the
+    client's Camera objects before listeners run, so this coordinator only
+    pushes fresh snapshots of that state to entities, tracks stream health,
+    and mirrors events onto the HA event bus.
+    """
 
     def __init__(
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
         client: SecSpyClient,
-        *,
-        min_score: int,
     ) -> None:
+        """Wire the coordinator to one config entry and its client."""
         super().__init__(
             hass,
             _LOGGER,
@@ -57,7 +63,6 @@ class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
         )
         self.client = client
         self.entry = entry
-        self.min_score = min_score
         self._unsub_stream = None
         self._stream_connected = False
         self._reauth_started = False
@@ -84,93 +89,46 @@ class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
         await super().async_shutdown()
 
     async def _on_event(self, event: Event) -> None:
-        """Apply an event stream update to camera state and HA."""
+        """Push the library-maintained camera state into HA for one event."""
         et = event.event_type
 
-        if et == EventType.NULL:
+        if et is EventType.NULL:
             # Keepalive: every 10s; no state to change, nothing to record.
             return
-        if et == EventType.CONNECTED:
+        if et is EventType.CONNECTED:
             self._stream_connected = True
-            self.async_set_updated_data(dict(self.data or self.client.cameras))
+            self.async_set_updated_data(dict(self.client.cameras))
             return
         if et in (EventType.DISCONNECTED, EventType.AUTHFAIL):
             self._stream_connected = False
-            self.async_set_updated_data(dict(self.data or self.client.cameras))
-            if et == EventType.AUTHFAIL and not self._reauth_started:
+            self.async_set_updated_data(dict(self.client.cameras))
+            if et is EventType.AUTHFAIL and not self._reauth_started:
                 # The library has already stopped the watcher for good.
                 self._reauth_started = True
                 self.entry.async_start_reauth(self.hass)
             return
 
-        cams = dict(self.data or self.client.cameras)
-        cam: Camera | None = None
-        if event.camera_number is not None and event.camera_number in cams:
-            cam = cams[event.camera_number]
+        # The library applied the event to client.cameras before we ran (and
+        # a REFRESH means it re-read ++systemInfo), so a snapshot of that map
+        # is always the freshest state available.
+        self.async_set_updated_data(dict(self.client.cameras))
 
-        if cam is not None:
-            if et in {EventType.TRIGGER_M, EventType.MOTION}:
-                cam.motion_active = True
-                if event.when:
-                    cam.last_motion_time = event.when.isoformat()
-                cam.trigger_reasons = list(event.reason_names)
-            elif et == EventType.MOTION_END:
-                cam.motion_active = False
-            elif et == EventType.ONLINE:
-                cam.connected = True
-            elif et == EventType.OFFLINE:
-                cam.connected = False
-            elif et == EventType.ARM_M:
-                cam.mode_m = "armed"
-            elif et == EventType.DISARM_M:
-                cam.mode_m = "disarmed"
-            elif et == EventType.ARM_C:
-                cam.mode_c = "armed"
-            elif et == EventType.DISARM_C:
-                cam.mode_c = "disarmed"
-            elif et == EventType.ARM_A:
-                cam.mode_a = "armed"
-            elif et == EventType.DISARM_A:
-                cam.mode_a = "disarmed"
-            elif et == EventType.CLASSIFY:
-                # Raw per-class scores are stored unfiltered (-99 = absent in
-                # this event); min_score only gates what the event entity
-                # fires. Absent scores overwrite older ones so attributes
-                # never go stale.
-                cam.score_human = event.classify_human
-                cam.score_vehicle = event.classify_vehicle
-                cam.score_animal = event.classify_animal
-                scores = [
-                    (label, value)
-                    for label, value in (
-                        ("human", event.classify_human),
-                        ("vehicle", event.classify_vehicle),
-                        ("animal", event.classify_animal),
-                    )
-                    if value >= 0
-                ]
-                cam.event_object = (
-                    max(scores, key=lambda item: item[1])[0] if scores else None
-                )
-                if event.when:
-                    cam.last_motion_time = event.when.isoformat()
-
-        if et == EventType.REFRESH and self.client.info is not None:
-            # The library refresh already preserved runtime motion fields.
-            cams = dict(self.client.cameras)
-
-        self.async_set_updated_data(cams)
-
-        # Event bus for power users / device automations
+        # Event bus for power users / device automations. Keys match the
+        # entity attribute names (trigger_reasons, event_score_*).
+        cam = (
+            self.client.cameras.get(event.camera_number)
+            if event.camera_number is not None
+            else None
+        )
         bus_data: dict[str, Any] = {
             "type": et.value,
             "event_id": event.event_id,
             "camera_number": event.camera_number,
             "msg": event.msg,
-            "reasons": event.reason_names,
-            "score_human": event.classify_human,
-            "score_vehicle": event.classify_vehicle,
-            "score_animal": event.classify_animal,
+            "trigger_reasons": event.reason_names,
+            "event_score_human": event.classify_human,
+            "event_score_vehicle": event.classify_vehicle,
+            "event_score_animal": event.classify_animal,
             "config_entry_id": self.entry.entry_id,
         }
         if cam is not None:

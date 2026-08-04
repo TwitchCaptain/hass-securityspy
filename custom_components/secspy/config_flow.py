@@ -69,7 +69,9 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -115,7 +117,7 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             data = {**entry.data, **user_input}
             try:
-                await _validate_input(self.hass, data)
+                info = await _validate_input(self.hass, data)
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
             except RequestError:
@@ -127,6 +129,11 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error validating SecuritySpy")
                 errors["base"] = "unknown"
             else:
+                # Guard against pointing the entry at a different server (for
+                # example after a host/DHCP change put another NVR on this
+                # address): the uuid must match the one this entry was made for.
+                await self.async_set_unique_id(info["uuid"])
+                self._abort_if_unique_id_mismatch(reason="wrong_server")
                 return self.async_update_reload_and_abort(entry, data_updates=data)
 
         return self.async_show_form(
@@ -151,8 +158,8 @@ class SecSpyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return SecSpyOptionsFlowHandler()
 
 
-class SecSpyOptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle options."""
+class SecSpyOptionsFlowHandler(config_entries.OptionsFlowWithReload):
+    """Handle options; the entry reloads automatically when they change."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

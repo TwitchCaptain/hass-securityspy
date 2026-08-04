@@ -103,10 +103,11 @@ enable_schedule_preset:
           min: 0
           mode: box
     config_entry_id:
-      name: Config entry ID
+      name: SecuritySpy server
       required: false
       selector:
-        text:
+        config_entry:
+          integration: secspy
 
 download_latest_motion_recording:
   name: Download latest motion recording

@@ -8,12 +8,14 @@ from pathlib import Path
 import homeassistant.helpers.device_registry as dr
 import voluptuous as vol
 from aiosecspy import CameraMode, SecSpyClient
-from aiosecspy.exceptions import AuthenticationError, RequestError
+from aiosecspy.exceptions import AuthenticationError, RequestError, SecSpyError
+from awesomeversion import AwesomeVersion
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
+    ConfigEntryError,
     ConfigEntryNotReady,
     HomeAssistantError,
 )
@@ -34,6 +36,7 @@ from .const import (
     DEFAULT_BRAND,
     DEFAULT_MIN_SCORE,
     DOMAIN,
+    MIN_SECSPY_VERSION,
     MODE_ACTION,
     MODE_CONTINUOUS,
     MODE_MOTION,
@@ -55,6 +58,15 @@ from .coordinator import (
 _LOGGER = logging.getLogger(__name__)
 
 type SecSpyConfigEntry = ConfigEntry[SecSpyRuntimeData]
+
+ALL_SERVICES = (
+    SERVICE_ENABLE_SCHEDULE_PRESET,
+    SERVICE_SET_ARM_MODE,
+    SERVICE_TRIGGER_MOTION,
+    SERVICE_SET_SCHEDULE,
+    SERVICE_SET_SCHEDULE_OVERRIDE,
+    SERVICE_DOWNLOAD_LATEST_MOTION_RECORDING,
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bool:
@@ -79,8 +91,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bo
     except RequestError as err:
         raise ConfigEntryNotReady(f"Cannot connect to SecuritySpy: {err}") from err
 
-    min_score = entry.options.get(CONF_MIN_SCORE, DEFAULT_MIN_SCORE)
-    coordinator = SecSpyCoordinator(hass, entry, client, min_score=min_score)
+    # The config flow checked this once, but the server can be downgraded (or
+    # restored from backup) between setups.
+    if AwesomeVersion(server_info.version) < AwesomeVersion(MIN_SECSPY_VERSION):
+        raise ConfigEntryError(
+            f"SecuritySpy {server_info.version} is older than the supported "
+            f"minimum {MIN_SECSPY_VERSION}"
+        )
+
+    coordinator = SecSpyCoordinator(hass, entry, client)
     await coordinator.async_setup()
 
     entry.runtime_data = SecSpyRuntimeData(
@@ -88,7 +107,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bo
         coordinator=coordinator,
         server_info=server_info,
         disable_rtsp=entry.options.get(CONF_DISABLE_RTSP, True),
-        min_score=min_score,
+        min_score=entry.options.get(CONF_MIN_SCORE, DEFAULT_MIN_SCORE),
     )
 
     device_registry = dr.async_get(hass)
@@ -102,7 +121,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> bo
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     _async_register_services(hass)
     return True
 
@@ -112,11 +130,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: SecSpyConfigEntry) -> b
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         await entry.runtime_data.coordinator.async_shutdown()
+        loaded = [
+            e
+            for e in hass.config_entries.async_entries(DOMAIN)
+            if e.state is ConfigEntryState.LOADED and e.entry_id != entry.entry_id
+        ]
+        if not loaded:
+            for service in ALL_SERVICES:
+                hass.services.async_remove(DOMAIN, service)
     return unload_ok
-
-
-async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 def _async_register_services(hass: HomeAssistant) -> None:
@@ -141,8 +163,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     async def handle_enable_preset(call: ServiceCall) -> None:
         runtime = _runtime_for_entry_id(call.data.get("config_entry_id"))
-        await runtime.client.set_schedule_preset(int(call.data[ATTR_PRESET_ID]))
-        await async_refresh_camera_state(runtime.coordinator)
+        try:
+            await runtime.client.set_schedule_preset(int(call.data[ATTR_PRESET_ID]))
+            await async_refresh_camera_state(runtime.coordinator)
+        except SecSpyError as err:
+            raise HomeAssistantError(f"Enabling schedule preset failed: {err}") from err
 
     async def handle_set_arm_mode(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -150,53 +175,70 @@ def _async_register_services(hass: HomeAssistant) -> None:
         runtime = _runtime_from_entity(hass, entity_id)
         mode = call.data[ATTR_MODE]
         enabled = call.data[ATTR_ENABLED]
-        if mode == MODE_MOTION:
-            await runtime.client.toggle_motion(camera_number, enabled)
-        elif mode == MODE_ACTION:
-            await runtime.client.toggle_actions(camera_number, enabled)
-        elif mode == MODE_CONTINUOUS:
-            await runtime.client.toggle_continuous(camera_number, enabled)
-        else:
-            raise HomeAssistantError(f"Unsupported mode: {mode}")
-        await async_refresh_camera_state(runtime.coordinator)
+        try:
+            if mode == MODE_MOTION:
+                await runtime.client.toggle_motion(camera_number, arm=enabled)
+            elif mode == MODE_ACTION:
+                await runtime.client.toggle_actions(camera_number, arm=enabled)
+            elif mode == MODE_CONTINUOUS:
+                await runtime.client.toggle_continuous(camera_number, arm=enabled)
+            else:
+                raise HomeAssistantError(f"Unsupported mode: {mode}")
+            await async_refresh_camera_state(runtime.coordinator)
+        except SecSpyError as err:
+            raise HomeAssistantError(f"Setting arm mode failed: {err}") from err
 
     async def handle_trigger_motion(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
         camera_number = _camera_number_from_entity(hass, entity_id)
         runtime = _runtime_from_entity(hass, entity_id)
-        await runtime.client.trigger_motion(camera_number)
+        try:
+            await runtime.client.trigger_motion(camera_number)
+        except SecSpyError as err:
+            raise HomeAssistantError(f"Triggering motion failed: {err}") from err
 
     async def handle_set_schedule(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
         camera_number = _camera_number_from_entity(hass, entity_id)
         runtime = _runtime_from_entity(hass, entity_id)
         mode = CameraMode(str(call.data[ATTR_MODE]).upper())
-        await runtime.client.set_schedule(
-            camera_number, mode, int(call.data[ATTR_SCHEDULE_ID])
-        )
-        await async_refresh_camera_state(runtime.coordinator)
+        try:
+            await runtime.client.set_schedule(
+                camera_number, mode, int(call.data[ATTR_SCHEDULE_ID])
+            )
+            await async_refresh_camera_state(runtime.coordinator)
+        except SecSpyError as err:
+            raise HomeAssistantError(f"Setting schedule failed: {err}") from err
 
     async def handle_set_override(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
         camera_number = _camera_number_from_entity(hass, entity_id)
         runtime = _runtime_from_entity(hass, entity_id)
         mode = CameraMode(str(call.data[ATTR_MODE]).upper())
-        await runtime.client.set_schedule_override(
-            camera_number, mode, int(call.data[ATTR_OVERRIDE_ID])
-        )
-        await async_refresh_camera_state(runtime.coordinator)
+        try:
+            await runtime.client.set_schedule_override(
+                camera_number, mode, int(call.data[ATTR_OVERRIDE_ID])
+            )
+            await async_refresh_camera_state(runtime.coordinator)
+        except SecSpyError as err:
+            raise HomeAssistantError(
+                f"Setting schedule override failed: {err}"
+            ) from err
 
     async def handle_download(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
         filename = call.data["filename"]
         camera_number = _camera_number_from_entity(hass, entity_id)
         runtime = _runtime_from_entity(hass, entity_id)
-        data = await runtime.client.download_latest_motion_recording(camera_number)
         path = Path(filename)
         if not path.is_absolute():
             path = Path(hass.config.path(filename))
         if not hass.config.is_allowed_path(str(path)):
             raise HomeAssistantError(f"Path is not allowed: {path}")
+        try:
+            data = await runtime.client.download_latest_motion_recording(camera_number)
+        except SecSpyError as err:
+            raise HomeAssistantError(f"Downloading recording failed: {err}") from err
 
         def _write() -> None:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -240,7 +282,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required("entity_id"): cv.entity_id,
-                vol.Required(ATTR_MODE): vol.All(vol.Upper, vol.In(["C", "M", "A", "X"])),
+                vol.Required(ATTR_MODE): vol.All(
+                    vol.Upper, vol.In(["C", "M", "A", "X"])
+                ),
                 vol.Required(ATTR_SCHEDULE_ID): vol.Coerce(int),
             }
         ),
@@ -252,7 +296,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required("entity_id"): cv.entity_id,
-                vol.Required(ATTR_MODE): vol.All(vol.Upper, vol.In(["C", "M", "A", "X"])),
+                vol.Required(ATTR_MODE): vol.All(
+                    vol.Upper, vol.In(["C", "M", "A", "X"])
+                ),
                 vol.Required(ATTR_OVERRIDE_ID): vol.Coerce(int),
             }
         ),
@@ -296,7 +342,9 @@ def _runtime_from_entity(hass: HomeAssistant, entity_id: str) -> SecSpyRuntimeDa
     if (
         config_entry is None
         or config_entry.state is not ConfigEntryState.LOADED
-        or not isinstance(getattr(config_entry, "runtime_data", None), SecSpyRuntimeData)
+        or not isinstance(
+            getattr(config_entry, "runtime_data", None), SecSpyRuntimeData
+        )
     ):
         raise HomeAssistantError("SecuritySpy config entry is not loaded")
     return config_entry.runtime_data
