@@ -70,6 +70,37 @@ async def test_classify_updates_scores_and_top_object(hass, mock_config_entry):
     assert cam.event_object == "vehicle"
 
 
+async def test_classify_absent_scores_clear_previous_values(hass, mock_config_entry):
+    """A class absent from a later CLASSIFY event must not keep a stale score."""
+    client = make_client({2: FakeCamera()})
+    coordinator = _make_coordinator(hass, mock_config_entry, client)
+
+    await emit(
+        client,
+        Event(
+            event_type=EventType.CLASSIFY,
+            camera_number=2,
+            classify_human=10,
+            classify_vehicle=95,
+            classify_animal=-99,
+        ),
+    )
+    await emit(
+        client,
+        Event(
+            event_type=EventType.CLASSIFY,
+            camera_number=2,
+            classify_human=85,
+            classify_vehicle=-99,
+            classify_animal=-99,
+        ),
+    )
+    cam = coordinator.data[2]
+    assert cam.score_human == 85
+    assert cam.score_vehicle == -99
+    assert cam.event_object == "human"
+
+
 async def test_disconnect_marks_stream_and_entities_unavailable(hass, mock_config_entry):
     """DISCONNECTED flips stream_connected so entities go unavailable."""
     client = make_client({0: FakeCamera()})

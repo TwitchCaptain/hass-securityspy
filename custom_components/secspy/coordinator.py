@@ -138,21 +138,25 @@ class SecSpyCoordinator(DataUpdateCoordinator[dict[int, Camera]]):
             elif et == EventType.DISARM_A:
                 cam.mode_a = "disarmed"
             elif et == EventType.CLASSIFY:
-                # Raw per-class scores and the top class are stored
-                # unfiltered; min_score only gates what the event entity fires.
-                scores = []
-                if event.classify_human >= 0:
-                    cam.score_human = event.classify_human
-                    scores.append(("human", event.classify_human))
-                if event.classify_vehicle >= 0:
-                    cam.score_vehicle = event.classify_vehicle
-                    scores.append(("vehicle", event.classify_vehicle))
-                if event.classify_animal >= 0:
-                    cam.score_animal = event.classify_animal
-                    scores.append(("animal", event.classify_animal))
-                if scores:
-                    scores.sort(key=lambda item: item[1], reverse=True)
-                    cam.event_object = scores[0][0]
+                # Raw per-class scores are stored unfiltered (-99 = absent in
+                # this event); min_score only gates what the event entity
+                # fires. Absent scores overwrite older ones so attributes
+                # never go stale.
+                cam.score_human = event.classify_human
+                cam.score_vehicle = event.classify_vehicle
+                cam.score_animal = event.classify_animal
+                scores = [
+                    (label, value)
+                    for label, value in (
+                        ("human", event.classify_human),
+                        ("vehicle", event.classify_vehicle),
+                        ("animal", event.classify_animal),
+                    )
+                    if value >= 0
+                ]
+                cam.event_object = (
+                    max(scores, key=lambda item: item[1])[0] if scores else None
+                )
                 if event.when:
                     cam.last_motion_time = event.when.isoformat()
 
