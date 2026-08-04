@@ -9,6 +9,6 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/TwitchCaptain/hass-securityspy/issues",
   "loggers": ["aiosecspy"],
-  "requirements": ["aiosecspy==0.2.0"],
+  "requirements": ["aiosecspy==0.2.1"],
   "version": "0.2.0"
 }

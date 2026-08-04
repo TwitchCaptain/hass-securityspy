@@ -1,2 +1,2 @@
 # Mirrors custom_components/secspy/manifest.json — used by CI and Dependabot.
-aiosecspy==0.2.0
+aiosecspy==0.2.1
