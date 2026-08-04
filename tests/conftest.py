@@ -2,27 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-
-# pytest-homeassistant-custom-component 0.13.x defines `enable_event_loop_debug`
-# as a plain `@pytest.fixture(autouse=True)` async generator, which pytest 9
-# rejects. Override it locally until the upstream plugin handles pytest 9.
-@pytest_asyncio.fixture(autouse=True)
-async def enable_event_loop_debug() -> None:
-    """Enable event loop debug mode."""
-    import asyncio
-
-    asyncio.get_running_loop().set_debug(True)
-
-
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.secspy.const import (
     CONF_DISABLE_RTSP,
@@ -31,6 +19,16 @@ from custom_components.secspy.const import (
     CONF_VERIFY_SSL,
     DOMAIN,
 )
+
+
+# pytest-homeassistant-custom-component 0.13.x defines `enable_event_loop_debug`
+# as a plain `@pytest.fixture(autouse=True)` async generator, which pytest 9
+# rejects. Override it locally until the upstream plugin handles pytest 9.
+@pytest_asyncio.fixture(autouse=True)
+async def enable_event_loop_debug() -> None:
+    """Enable event loop debug mode."""
+    asyncio.get_running_loop().set_debug(True)
+
 
 ENTRY_DATA: dict[str, Any] = {
     CONF_HOST: "secspy.local",

@@ -17,7 +17,10 @@ def _make_entity(hass, entry, client, min_score=50) -> tuple:
     entity.hass = hass
     # Writing state needs a platform/entity_id; we only care about the staged
     # event, so swap the write for a no-op.
-    entity.async_write_ha_state = lambda: None
+    def _noop_write_state() -> None:
+        pass
+
+    entity.async_write_ha_state = _noop_write_state
     # Record _trigger_event calls instead of asserting on EventEntity's
     # name-mangled private attributes (which change across HA versions).
     fired: list[tuple[str, dict]] = []
