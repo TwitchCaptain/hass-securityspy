@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-from homeassistant.config_entries import ConfigEntry
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from aiosecspy import Camera
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -12,37 +21,88 @@ from .const import (
     ATTR_EVENT_SCORE_HUMAN,
     ATTR_EVENT_SCORE_VEHICLE,
 )
-from .entity import SecSpyBaseEntity
+from .entity import SecSpyBaseEntity, async_add_camera_entities
 
-SENSORS = (
-    SensorEntityDescription(key="detected_object", name="Detected object"),
-    SensorEntityDescription(key="motion_recording", name="Motion recording"),
-    SensorEntityDescription(key="continuous_recording", name="Continuous recording"),
-    SensorEntityDescription(key="actions_enabled", name="Actions enabled"),
+if TYPE_CHECKING:
+    from . import SecSpyConfigEntry
+    from .coordinator import SecSpyCoordinator
+
+
+@dataclass(frozen=True, kw_only=True)
+class SecSpySensorDescription(SensorEntityDescription):
+    """Sensor description with a value extractor."""
+
+    value_fn: Callable[[Camera], str | None]
+
+
+def _armed(value: bool) -> str:
+    return "armed" if value else "disarmed"
+
+
+SENSORS: tuple[SecSpySensorDescription, ...] = (
+    SecSpySensorDescription(
+        key="detected_object",
+        translation_key="detected_object",
+        device_class=SensorDeviceClass.ENUM,
+        options=["human", "vehicle", "animal"],
+        value_fn=lambda cam: cam.event_object,
+    ),
+    SecSpySensorDescription(
+        key="motion_recording",
+        translation_key="motion_recording",
+        device_class=SensorDeviceClass.ENUM,
+        options=["armed", "disarmed"],
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda cam: _armed(cam.armed_motion),
+    ),
+    SecSpySensorDescription(
+        key="continuous_recording",
+        translation_key="continuous_recording",
+        device_class=SensorDeviceClass.ENUM,
+        options=["armed", "disarmed"],
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda cam: _armed(cam.armed_continuous),
+    ),
+    SecSpySensorDescription(
+        key="actions_enabled",
+        translation_key="actions_enabled",
+        device_class=SensorDeviceClass.ENUM,
+        options=["armed", "disarmed"],
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda cam: _armed(cam.armed_actions),
+    ),
 )
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SecSpyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up sensors."""
     runtime = entry.runtime_data
-    entities = [
-        SecSpySensor(runtime.coordinator, cam_num, description)
-        for cam_num in runtime.coordinator.data
-        for description in SENSORS
-    ]
-    async_add_entities(entities)
+    async_add_camera_entities(
+        runtime.coordinator,
+        async_add_entities,
+        lambda number: [
+            SecSpySensor(runtime.coordinator, number, description)
+            for description in SENSORS
+        ],
+    )
 
 
 class SecSpySensor(SecSpyBaseEntity, SensorEntity):
     """Read-only camera status sensor."""
 
-    entity_description: SensorEntityDescription
+    entity_description: SecSpySensorDescription
 
-    def __init__(self, coordinator, camera_number, description) -> None:
+    def __init__(
+        self,
+        coordinator: SecSpyCoordinator,
+        camera_number: int,
+        description: SecSpySensorDescription,
+    ) -> None:
+        """Bind the description to one camera."""
         super().__init__(coordinator, camera_number, key=description.key)
         self.entity_description = description
 
@@ -52,16 +112,7 @@ class SecSpySensor(SecSpyBaseEntity, SensorEntity):
         cam = self.camera
         if cam is None:
             return None
-        key = self.entity_description.key
-        if key == "detected_object":
-            return cam.event_object
-        if key == "motion_recording":
-            return "armed" if cam.armed_motion else "disarmed"
-        if key == "continuous_recording":
-            return "armed" if cam.armed_continuous else "disarmed"
-        if key == "actions_enabled":
-            return "armed" if cam.armed_actions else "disarmed"
-        return None
+        return self.entity_description.value_fn(cam)
 
     @property
     def extra_state_attributes(self) -> dict | None:

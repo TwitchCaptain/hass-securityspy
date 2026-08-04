@@ -7,14 +7,15 @@ from aiosecspy import Event, EventType
 from custom_components.secspy.coordinator import SecSpyCoordinator
 from custom_components.secspy.event import SecSpyClassifyEvent
 
-from .conftest import FakeCamera, emit, make_client
+from .conftest import emit, make_camera, make_client
 
 
 def _make_entity(hass, entry, client, min_score=50) -> tuple:
-    coordinator = SecSpyCoordinator(hass, entry, client, min_score=min_score)
+    coordinator = SecSpyCoordinator(hass, entry, client)
     coordinator.async_set_updated_data(dict(client.cameras))
     entity = SecSpyClassifyEvent(coordinator, 1, min_score)
     entity.hass = hass
+
     # Writing state needs a platform/entity_id; we only care about the staged
     # event, so swap the write for a no-op.
     def _noop_write_state() -> None:
@@ -37,7 +38,7 @@ def _make_entity(hass, entry, client, min_score=50) -> tuple:
 
 async def test_top_scoring_class_wins(hass, mock_config_entry):
     """Only the top class at/above threshold fires; scores ride in attributes."""
-    client = make_client({1: FakeCamera()})
+    client = make_client({1: make_camera(1)})
     _, _, fired = _make_entity(hass, mock_config_entry, client)
 
     await emit(
@@ -76,7 +77,7 @@ async def test_top_scoring_class_wins(hass, mock_config_entry):
 
 async def test_below_threshold_does_not_fire(hass, mock_config_entry):
     """All scores below the minimum means no event."""
-    client = make_client({1: FakeCamera()})
+    client = make_client({1: make_camera(1)})
     _, _, fired = _make_entity(hass, mock_config_entry, client, min_score=50)
 
     await emit(
@@ -94,7 +95,7 @@ async def test_below_threshold_does_not_fire(hass, mock_config_entry):
 
 async def test_other_camera_ignored(hass, mock_config_entry):
     """Events for another camera never fire this entity."""
-    client = make_client({1: FakeCamera(), 2: FakeCamera()})
+    client = make_client({1: make_camera(1), 2: make_camera(2)})
     _, _, fired = _make_entity(hass, mock_config_entry, client)
 
     await emit(

@@ -30,7 +30,8 @@
     },
     "abort": {
       "already_configured": "This SecuritySpy server is already configured",
-      "reauth_successful": "Credentials updated"
+      "reauth_successful": "Credentials updated",
+      "wrong_server": "The server at this address is not the one this entry was configured for"
     }
   },
   "options": {
@@ -40,6 +41,127 @@
         "data": {
           "disable_rtsp": "Disable RTSP (proxy MJPEG through Home Assistant)",
           "min_event_score": "Minimum AI classify score for event entities"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "motion": { "name": "Motion" },
+      "online": { "name": "Online" },
+      "event_stream": { "name": "Event stream" }
+    },
+    "sensor": {
+      "detected_object": {
+        "name": "Detected object",
+        "state": {
+          "human": "Human",
+          "vehicle": "Vehicle",
+          "animal": "Animal"
+        }
+      },
+      "motion_recording": {
+        "name": "Motion recording",
+        "state": { "armed": "Armed", "disarmed": "Disarmed" }
+      },
+      "continuous_recording": {
+        "name": "Continuous recording",
+        "state": { "armed": "Armed", "disarmed": "Disarmed" }
+      },
+      "actions_enabled": {
+        "name": "Actions",
+        "state": { "armed": "Armed", "disarmed": "Disarmed" }
+      }
+    },
+    "switch": {
+      "arm_motion": { "name": "Arm motion" },
+      "arm_actions": { "name": "Arm actions" },
+      "arm_continuous": { "name": "Arm continuous" }
+    },
+    "button": {
+      "ptz_left": { "name": "PTZ left" },
+      "ptz_right": { "name": "PTZ right" },
+      "ptz_up": { "name": "PTZ up" },
+      "ptz_down": { "name": "PTZ down" },
+      "ptz_zoom_in": { "name": "PTZ zoom in" },
+      "ptz_zoom_out": { "name": "PTZ zoom out" },
+      "ptz_home": { "name": "PTZ home" },
+      "ptz_stop": { "name": "PTZ stop" }
+    },
+    "event": {
+      "classify": { "name": "Classification" },
+      "trigger": { "name": "Trigger" }
+    }
+  },
+  "services": {
+    "set_arm_mode": {
+      "name": "Set arm mode",
+      "description": "Arms or disarms continuous, motion, or action mode for a camera.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any secspy entity that belongs to the target camera."
+        },
+        "mode": { "name": "Mode", "description": "The capture mode to change." },
+        "enabled": { "name": "Enabled", "description": "Arm (on) or disarm (off)." }
+      }
+    },
+    "trigger_motion": {
+      "name": "Trigger motion",
+      "description": "Manually triggers motion detection on a camera.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any secspy entity that belongs to the target camera."
+        }
+      }
+    },
+    "set_schedule": {
+      "name": "Set schedule",
+      "description": "Assigns a schedule ID to a camera mode (C/M/A/X).",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any secspy entity that belongs to the target camera."
+        },
+        "mode": { "name": "Mode", "description": "C, M, A, or X (all)." },
+        "schedule_id": { "name": "Schedule ID", "description": "The schedule to assign." }
+      }
+    },
+    "set_schedule_override": {
+      "name": "Set schedule override",
+      "description": "Assigns a schedule override ID to a camera mode (C/M/A/X).",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any secspy entity that belongs to the target camera."
+        },
+        "mode": { "name": "Mode", "description": "C, M, A, or X (all)." },
+        "override_id": { "name": "Override ID", "description": "The override to assign." }
+      }
+    },
+    "enable_schedule_preset": {
+      "name": "Enable schedule preset",
+      "description": "Activates a server-wide schedule preset.",
+      "fields": {
+        "preset_id": { "name": "Preset ID", "description": "The preset to activate." },
+        "config_entry_id": {
+          "name": "SecuritySpy server",
+          "description": "Which server to target; only needed with multiple servers."
+        }
+      }
+    },
+    "download_latest_motion_recording": {
+      "name": "Download latest motion recording",
+      "description": "Downloads the newest motion clip for a camera into Home Assistant.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any secspy entity that belongs to the target camera."
+        },
+        "filename": {
+          "name": "Filename",
+          "description": "Absolute path or path relative to the HA config directory."
         }
       }
     }
