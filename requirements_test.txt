@@ -2,4 +2,4 @@
 pytest-homeassistant-custom-component==0.13.351
 ruff==0.16.1
 # homeassistant.components.camera imports turbojpeg at module import time.
-PyTurboJPEG==2.5.0
+PyTurboJPEG==2.6.1
